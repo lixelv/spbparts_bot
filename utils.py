@@ -1,7 +1,7 @@
 import re
 import asyncio
 
-from config import OPENAI_API_KEY
+from config import OPENAI_API_KEY, OPENAI_ASSISTANT_ID
 from openai import OpenAI
 
 # client = OpenAI(
@@ -24,7 +24,7 @@ async def get_answer_async(request, thread):
 
     run = await asyncio.to_thread(
         lambda: client.beta.threads.runs.create_and_poll(
-            thread_id=thread.id, assistant_id="asst_HuxJC80xbcvVAGZDkQZ7vN10"
+            thread_id=thread.id, assistant_id=OPENAI_ASSISTANT_ID
         )
     )
 
