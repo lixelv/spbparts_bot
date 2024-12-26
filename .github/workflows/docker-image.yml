@@ -18,6 +18,6 @@ jobs:
 
       - name: Deploy using SSH and password
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << EOF
+          sshpass -p "${{ secrets.SSH_KEY }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << EOF
           /root/github/spbparts_bot/rebuild.sh
           EOF
