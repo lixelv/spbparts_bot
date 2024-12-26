@@ -18,12 +18,14 @@ context = {}
 
 @dp.message(Command("start"))
 async def send_welcome(message: Message):
-    await message.reply("Привет!\nЯ ваш бот!\nРаботаю на ЕвроПром.")
+    await message.reply("Привет!\nЯ ваш бот!\nРаботаю на ЕвроПром. Задавайте вопросы.")
 
 
 @dp.message(Command("clear"))
 async def clear_context(message: Message):
-    del context[message.chat.id]
+    if context.get(message.chat.id) is not None:
+        del context[message.chat.id]
+
     await message.reply("Контекст очищен.")
 
 
