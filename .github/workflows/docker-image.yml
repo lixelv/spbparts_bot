@@ -19,5 +19,5 @@ jobs:
       - name: Deploy using SSH and password
         run: |
           sshpass -p "${{ secrets.SSH_KEY }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << EOF
-          /root/github/spbparts_bot/rebuild.sh
+          /root/github/telegram_bot/rebuild.sh
           EOF
