@@ -18,7 +18,9 @@ context = {}
 
 @dp.message(Command("start"))
 async def send_welcome(message: Message):
-    await message.reply("Привет!\nЯ ваш бот!\nРаботаю на ЕвроПром. Задавайте вопросы.")
+    await message.reply(
+        "Привет!\nЯ ваш бот!\nРаботаю на ЕвроПром. \nЗадавайте вопросы."
+    )
 
 
 @dp.message(Command("clear"))
