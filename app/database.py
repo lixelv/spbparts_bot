@@ -51,12 +51,16 @@ class MySQL:
         """)
 
     async def do(self, sql: str, values: tuple = ()) -> None:
+        if not self.connection or not self.cursor:
+            await self.connect()
         await self.cursor.execute(sql, values)
         await self.connection.commit()
 
     async def read(
         self, sql: str, values: tuple = (), one: bool = False
     ) -> Iterable[DictCursor]:
+        if not self.connection or not self.cursor:
+            await self.connect()
         await self.cursor.execute(sql, values)
 
         if one:
@@ -65,8 +69,10 @@ class MySQL:
             return await self.cursor.fetchall()
 
     async def close(self) -> None:
-        await self.cursor.close()
-        self.connection.close()
+        if self.cursor:
+            await self.cursor.close()
+        if self.connection:
+            self.connection.close()
 
     async def user_exists(self, user_id: int) -> bool:
         sql = "SELECT * FROM users WHERE id = %s"

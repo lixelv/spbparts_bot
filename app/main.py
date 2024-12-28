@@ -34,7 +34,7 @@ async def start(message: Message, user):
 # user[3] is chatgpt_token
 @dp.message(Command("clear"))
 async def clear(message: Message, user):
-    thread_id = user[3]
+    thread_id = user["chatgpt_thread_id"]
 
     if thread_id is not None:
         await sql.set_chatgpt_thread_id(message.from_user.id, None)
@@ -57,9 +57,9 @@ async def chatgpt_reply(message: Message, user):
     metadata = {
         i: str(metadata[i])
         for i in metadata
-        if metadata[i] in ("id", "username", "first_name", "last_name", "language_code")
+        if i in ("id", "username", "first_name", "last_name", "language_code")
     }
-    thread_id = user[3]
+    thread_id = user["chatgpt_thread_id"]
 
     if thread_id is None:
         thread_id = client.beta.threads.create(metadata=metadata).id
@@ -81,5 +81,4 @@ async def chatgpt_reply(message: Message, user):
 
 
 if __name__ == "__main__":
-    asyncio.run(sql.connect())
     dp.run_polling(bot)

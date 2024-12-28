@@ -19,8 +19,10 @@ def clear_context(text):
     return re.sub(r"【.*】", "", text)
 
 
-async def get_answer_async(request, thread_id: str) -> str:
-    client.beta.threads.messages.create(thread_id, role="user", content=request)
+async def get_answer_async(request, thread_id: str, context: any) -> str:
+    client.beta.threads.messages.create(
+        thread_id, role="user", content=f"CONTEXT_INFO: {context}\n\n{request}"
+    )
 
     run = await asyncio.to_thread(
         lambda: client.beta.threads.runs.create_and_poll(
