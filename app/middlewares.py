@@ -2,12 +2,12 @@ from aiogram import BaseMiddleware, Dispatcher
 from aiogram.types import Message
 
 from abc import abstractmethod
-from database import SQLite
+from database import MySQL
 from typing import Any, Dict, Callable, Awaitable
 
 
 class DatabaseRelatedMiddleware(BaseMiddleware):
-    def __init__(self, db: SQLite):
+    def __init__(self, db: MySQL):
         super().__init__()
         self.db = db
 
@@ -29,6 +29,8 @@ class UserCheckMiddleware(DatabaseRelatedMiddleware):
             await self.db.add_user(
                 event.from_user.id, event.from_user.username, event.from_user.full_name
             )
+
+            user = await self.db.get_user(event.from_user.id)
 
         data["user"] = user
 

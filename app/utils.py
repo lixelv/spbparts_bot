@@ -1,7 +1,6 @@
 import re
 import asyncio
 
-from aiogram.types.user import User
 from config import OPENAI_API_KEY, OPENAI_ASSISTANT_ID
 from openai import OpenAI
 
@@ -20,12 +19,8 @@ def clear_context(text):
     return re.sub(r"【.*】", "", text)
 
 
-async def get_answer_async(
-    request, thread_id: str, context_data: dict[str, str]
-) -> str:
-    client.beta.threads.messages.create(
-        thread_id, role="user", content=f"CONTEXT_DATA: {context_data}\n\n{request}"
-    )
+async def get_answer_async(request, thread_id: str) -> str:
+    client.beta.threads.messages.create(thread_id, role="user", content=request)
 
     run = await asyncio.to_thread(
         lambda: client.beta.threads.runs.create_and_poll(
@@ -33,8 +28,5 @@ async def get_answer_async(
         )
     )
 
-    if run.status == "completed":
-        response = client.beta.threads.messages.list(thread_id, limit=1)
-        return clear_context(response.data[0].content[0].text.value)
-    else:
-        return "Извините, произошла ошибка."
+    response = client.beta.threads.messages.list(thread_id, limit=1)
+    return clear_context(response.data[0].content[0].text.value)

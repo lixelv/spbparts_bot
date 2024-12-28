@@ -1,15 +1,16 @@
 import logging
 import asyncio
+import json
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import Message, FSInputFile
 
-from config import TELEGRAM_BOT_TOKEN
+from config import TELEGRAM_BOT_TOKEN, DATABASE_CONFIG
 from utils import get_answer_async, client
 from keyboards import keyboard, texts
 from middlewares import setup_middlewares
-from database import SQLite
+from database import MySQL
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 # Initialize bot and dispatcher
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
-sql = SQLite("db.sqlite")
+sql = MySQL(DATABASE_CONFIG)
 
 setup_middlewares(dp, sql)
 
@@ -44,18 +45,25 @@ async def clear(message: Message, user):
     )
 
 
-@dp.message(Command("get_sqlite_database"))
-async def get_sqlite_database(message: Message):
-    input_file = FSInputFile("db.sqlite")
+@dp.message(Command("get_MySQL_database"))
+async def get_MySQL_database(message: Message):
+    input_file = FSInputFile("db.MySQL")
     return await message.reply_document(document=input_file, reply_markup=keyboard)
 
 
 @dp.message()
 async def chatgpt_reply(message: Message, user):
+    metadata = json.loads(message.from_user.model_dump_json())
+    metadata = {
+        i: str(metadata[i])
+        for i in metadata
+        if metadata[i] in ("id", "username", "first_name", "last_name", "language_code")
+    }
     thread_id = user[3]
 
     if thread_id is None:
-        thread_id = client.beta.threads.create().id
+        thread_id = client.beta.threads.create(metadata=metadata).id
+
         await sql.set_chatgpt_thread_id(message.from_user.id, thread_id)
 
     reply = await message.reply(
@@ -65,13 +73,7 @@ async def chatgpt_reply(message: Message, user):
     )
 
     response = await get_answer_async(
-        texts.get(message.text) or message.text,
-        thread_id,
-        {
-            "name": message.from_user.full_name,
-            "username": message.from_user.username,
-            "id": message.from_user.id,
-        },
+        texts.get(message.text) or message.text, thread_id, metadata
     )
 
     await reply.delete()
