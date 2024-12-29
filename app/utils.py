@@ -24,7 +24,7 @@ async def get_answer_async(request, thread_id: str, context: any) -> str:
         thread_id, role="user", content=f"CONTEXT_INFO: {context}\n\n{request}"
     )
 
-    run = await asyncio.to_thread(
+    await asyncio.to_thread(
         lambda: client.beta.threads.runs.create_and_poll(
             thread_id=thread_id, assistant_id=OPENAI_ASSISTANT_ID
         )
