@@ -27,7 +27,7 @@ class MySQL:
         # Create tables one by one
         await self.do("""
             CREATE TABLE IF NOT EXISTS users (
-                id INT PRIMARY KEY, -- Telegram ID пользователя или уникальный ID
+                id BIGINT PRIMARY KEY, -- Telegram ID пользователя или уникальный ID
                 username VARCHAR(255), -- Username пользователя
                 full_name VARCHAR(255), -- Полное имя пользователя
                 chatgpt_thread_id VARCHAR(255), -- ID thread-а с ChatGPT API
@@ -42,7 +42,7 @@ class MySQL:
 
         await self.do("""
             CREATE TABLE IF NOT EXISTS messages (
-                id INT PRIMARY KEY AUTO_INCREMENT, -- Уникальный идентификатор сообщения
+                id BIGINT PRIMARY KEY AUTO_INCREMENT, -- Уникальный идентификатор сообщения
                 user_id INT, -- ID пользователя, к которому относится сообщение
                 message TEXT NOT NULL, -- Текст сообщения
                 sender INT NOT NULL, -- Кто отправил сообщение: 0 - пользователь, 1 - чатбот, 2 - менеджер
