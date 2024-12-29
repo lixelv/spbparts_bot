@@ -11,15 +11,17 @@ class MySQL:
         self.cursor: Optional[aiomysql.Cursor] = None
 
     async def connect(self) -> None:
-        self.connection = await aiomysql.connect(
-            db=self.config["database"],
-            user=self.config["user"],
-            password=self.config["password"],
-            host=self.config["url"],
-            port=self.config["port"],
-        )
-        self.cursor = await self.connection.cursor(DictCursor)
-        await self.create_tables()
+        if not self.connection or not self.cursor:
+            self.connection = await aiomysql.connect(
+                db=self.config["database"],
+                user=self.config["user"],
+                password=self.config["password"],
+                host=self.config["url"],
+                port=self.config["port"],
+            )
+            self.cursor = await self.connection.cursor(DictCursor)
+
+            await self.create_tables()
 
     async def create_tables(self):
         # Create tables one by one
@@ -51,16 +53,14 @@ class MySQL:
         """)
 
     async def do(self, sql: str, values: tuple = ()) -> None:
-        if not self.connection or not self.cursor:
-            await self.connect()
+        await self.connect()
         await self.cursor.execute(sql, values)
         await self.connection.commit()
 
     async def read(
         self, sql: str, values: tuple = (), one: bool = False
     ) -> Iterable[DictCursor]:
-        if not self.connection or not self.cursor:
-            await self.connect()
+        await self.connect()
         await self.cursor.execute(sql, values)
 
         if one:
