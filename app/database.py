@@ -33,7 +33,7 @@ class MySQL:
                 chatgpt_thread_id VARCHAR(255), -- ID thread-а с ChatGPT API
                 manager_level INT DEFAULT 0, -- Уровень менеджера, по умолчанию 0 (не менеджер)
                 spec VARCHAR(255), -- Специализация менеджера
-                active_user INT DEFAULT NULL, -- ID активного пользователя для менеджера
+                active_user BIGINT DEFAULT NULL, -- ID активного пользователя для менеджера
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Время добавления пользователя в базу данных
                 
                 FOREIGN KEY (active_user) REFERENCES users (id) ON DELETE SET NULL
@@ -43,7 +43,7 @@ class MySQL:
         await self.do("""
             CREATE TABLE IF NOT EXISTS messages (
                 id BIGINT PRIMARY KEY AUTO_INCREMENT, -- Уникальный идентификатор сообщения
-                user_id INT, -- ID пользователя, к которому относится сообщение
+                user_id BIGINT, -- ID пользователя, к которому относится сообщение
                 message TEXT NOT NULL, -- Текст сообщения
                 sender INT NOT NULL, -- Кто отправил сообщение: 0 - пользователь, 1 - чатбот, 2 - менеджер
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Время отправки сообщения
