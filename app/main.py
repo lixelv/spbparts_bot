@@ -3,11 +3,11 @@ import json
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
-from aiogram.types import Message, FSInputFile
+from aiogram.types import Message
 
 from config import TELEGRAM_BOT_TOKEN, DATABASE_CONFIG
 from utils import get_answer_async, client
-from keyboards import keyboard, texts
+from keyboards import keyboard
 from middlewares import setup_middlewares
 from database import MySQL
 
@@ -44,20 +44,15 @@ async def clear(message: Message, user):
     )
 
 
-@dp.message(Command("get_MySQL_database"))
-async def get_MySQL_database(message: Message):
-    input_file = FSInputFile("db.MySQL")
-    return await message.reply_document(document=input_file, reply_markup=keyboard)
-
-
 @dp.message()
-async def chatgpt_reply(message: Message, user):
+async def chatgpt_reply(message: Message, user, text=None):
     metadata = json.loads(message.from_user.model_dump_json())
     metadata = {
         i: str(metadata[i])
         for i in metadata
         if i in ("id", "username", "first_name", "last_name", "language_code")
     }
+    text = text or message.text
     thread_id = user["chatgpt_thread_id"]
 
     if thread_id is None:
@@ -71,9 +66,7 @@ async def chatgpt_reply(message: Message, user):
         reply_markup=keyboard,
     )
 
-    response = await get_answer_async(
-        texts.get(message.text) or message.text, thread_id, metadata
-    )
+    response = await get_answer_async(text, thread_id, metadata)
 
     await reply.delete()
     return await message.reply(response, parse_mode="Markdown", reply_markup=keyboard)

@@ -1,9 +1,18 @@
-from aiogram import BaseMiddleware, Dispatcher
 from aiogram.types import Message
-
-from abc import abstractmethod
-from database import MySQL
 from typing import Any, Dict, Callable, Awaitable
+from database import MySQL
+from aiogram import BaseMiddleware, Dispatcher
+from abc import abstractmethod
+
+from keyboards import texts
+
+
+class HandleKeyboardMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event: Message, data):
+        if event.text in texts:
+            data["text"] = texts[event.text]
+
+        return await handler(event, data)
 
 
 class DatabaseRelatedMiddleware(BaseMiddleware):
@@ -55,5 +64,6 @@ class AddMessagesMiddleware(DatabaseRelatedMiddleware):
 
 
 def setup_middlewares(dp: Dispatcher, user_db):
+    dp.message.middleware(HandleKeyboardMiddleware())
     dp.message.middleware(UserCheckMiddleware(user_db))
     dp.message.middleware(AddMessagesMiddleware(user_db))
