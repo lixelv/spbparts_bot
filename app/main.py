@@ -72,10 +72,11 @@ async def chatgpt_reply(message: Message, user, text=None):
 
     response = await get_answer_async(text, thread_id, metadata)
     set_phone_regex = r"SET_PHONE_NUMBER:\s*(\+?\d+)"
-    phone_number = ([None] or re.findall(set_phone_regex, response))[0]
+    phone_number = (re.findall(set_phone_regex, response) or [None])[0]
     response = re.sub(set_phone_regex, "", response)
 
     if phone_number is not None:
+        print(phone_number)
         await sql.set_phone_number(message.from_user.id, phone_number)
 
     await reply.delete()

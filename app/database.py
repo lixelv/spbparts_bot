@@ -11,7 +11,7 @@ class MySQL:
         self.cursor: Optional[aiomysql.Cursor] = None
 
     async def connect(self) -> None:
-        if not self.connection or not self.cursor:
+        if not self.connection or self.connection.closed:
             self.connection = await aiomysql.connect(
                 db=self.config["database"],
                 user=self.config["user"],
@@ -19,9 +19,9 @@ class MySQL:
                 host=self.config["url"],
                 port=self.config["port"],
             )
-            self.cursor = await self.connection.cursor(DictCursor)
-
             await self.create_tables()
+
+        self.cursor = await self.connection.cursor(DictCursor)
 
     async def create_tables(self):
         # Create tables one by one
