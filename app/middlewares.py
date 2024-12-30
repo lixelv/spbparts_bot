@@ -1,4 +1,4 @@
-from aiogram.types import Message
+from aiogram.types import Message, ContentType
 from typing import Any, Dict, Callable, Awaitable
 from database import MySQL
 from aiogram import BaseMiddleware, Dispatcher
@@ -48,15 +48,17 @@ class UserCheckMiddleware(DatabaseRelatedMiddleware):
 
 class AddMessagesMiddleware(DatabaseRelatedMiddleware):
     async def __call__(self, handler, event: Message, data):
-        if isinstance(event, Message):
+        if event.content_type == ContentType.TEXT:
             await self.db.add_message(event.from_user.id, event.text, 0)
 
         result = await handler(event, data)
 
-        if isinstance(event, Message):
+        if event.content_type == ContentType.TEXT:
             await self.db.add_message(
                 event.from_user.id,
-                result.text if result.text else "Handler returned non-Message result",
+                result.text
+                if result.content_type == ContentType.TEXT
+                else "Handler returned non-Message result",
                 1,
             )
 

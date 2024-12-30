@@ -1,11 +1,12 @@
 import logging
 import json
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, ContentType
 
-from config import TELEGRAM_BOT_TOKEN, DATABASE_CONFIG
+
+from config import TELEGRAM_BOT_TOKEN, DATABASE_CONFIG, LOADING_STICKER_ID
 from utils import get_answer_async, client
 from keyboards import keyboard
 from middlewares import setup_middlewares
@@ -44,7 +45,7 @@ async def clear(message: Message, user):
     )
 
 
-@dp.message()
+@dp.message(F.content_type == ContentType.TEXT)
 async def chatgpt_reply(message: Message, user, text=None):
     metadata = json.loads(message.from_user.model_dump_json())
     metadata = {
@@ -60,9 +61,8 @@ async def chatgpt_reply(message: Message, user, text=None):
 
         await sql.set_chatgpt_thread_id(message.from_user.id, thread_id)
 
-    reply = await message.reply(
-        "Подождите, идет обработка запроса...",
-        parse_mode="Markdown",
+    reply = await message.answer_sticker(
+        LOADING_STICKER_ID,
         reply_markup=keyboard,
     )
 
@@ -70,6 +70,13 @@ async def chatgpt_reply(message: Message, user, text=None):
 
     await reply.delete()
     return await message.reply(response, parse_mode="Markdown", reply_markup=keyboard)
+
+
+@dp.message()
+async def other_type(message: Message):
+    return await message.reply(
+        "Я понимаю только текстовые сообщения.", reply_markup=keyboard
+    )
 
 
 if __name__ == "__main__":
