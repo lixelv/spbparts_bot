@@ -4,6 +4,7 @@ import json
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, ContentType
+import re
 
 
 from config import TELEGRAM_BOT_TOKEN, DATABASE_CONFIG, LOADING_STICKER_ID
@@ -53,12 +54,15 @@ async def chatgpt_reply(message: Message, user, text=None):
         for i in metadata
         if i in ("id", "username", "first_name", "last_name", "language_code")
     }
+    metadata.update(
+        {"phone_number": user.get("phone_number")} if user.get("phone_number") else {}
+    )
+
     text = text or message.text
     thread_id = user["chatgpt_thread_id"]
 
     if thread_id is None:
         thread_id = client.beta.threads.create(metadata=metadata).id
-
         await sql.set_chatgpt_thread_id(message.from_user.id, thread_id)
 
     reply = await message.answer_sticker(
@@ -67,6 +71,12 @@ async def chatgpt_reply(message: Message, user, text=None):
     )
 
     response = await get_answer_async(text, thread_id, metadata)
+    set_phone_regex = r"SET_PHONE_NUMBER:\s*(\+?\d+)"
+    phone_number = ([None] or re.findall(set_phone_regex, response))[0]
+    response = re.sub(set_phone_regex, "", response)
+
+    if phone_number is not None:
+        await sql.set_phone_number(message.from_user.id, phone_number)
 
     await reply.delete()
     return await message.reply(response, parse_mode="Markdown", reply_markup=keyboard)

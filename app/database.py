@@ -30,6 +30,7 @@ class MySQL:
                 id BIGINT PRIMARY KEY, -- Telegram ID пользователя или уникальный ID
                 username VARCHAR(255), -- Username пользователя
                 full_name VARCHAR(255), -- Полное имя пользователя
+                phone_number VARCHAR(255), -- Номер телефона пользователя
                 chatgpt_thread_id VARCHAR(255), -- ID thread-а с ChatGPT API
                 manager_level INT DEFAULT 0, -- Уровень менеджера, по умолчанию 0 (не менеджер)
                 spec VARCHAR(255), -- Специализация менеджера
@@ -93,6 +94,10 @@ class MySQL:
     async def get_chatgpt_thread_id(self, user_id: int) -> Optional[str]:
         sql = "SELECT chatgpt_thread_id FROM users WHERE id = %s"
         return await self.read(sql, (user_id,), one=True)
+
+    async def set_phone_number(self, user_id: int, phone_number: str) -> None:
+        sql = "UPDATE users SET phone_number = %s WHERE id = %s"
+        await self.do(sql, (phone_number, user_id))
 
     async def set_manager(self, user_id: int, spec: str, manager_level: int) -> None:
         sql = "UPDATE users SET manager_level = %s, spec = %s WHERE id = %s"
