@@ -1,7 +1,7 @@
 import aiomysql
 
 from aiomysql import DictCursor
-from typing import Iterable, Optional, List
+from typing import Optional, List
 
 
 class MySQL:
@@ -10,8 +10,8 @@ class MySQL:
         self.connection: Optional[aiomysql.Connection] = None
         self.cursor: Optional[aiomysql.Cursor] = None
 
-    async def connect(self) -> None:
-        if not self.connection or self.connection.closed:
+    async def connect(self, connect_instant=False) -> None:
+        if not self.connection or self.connection.closed or connect_instant:
             self.connection = await aiomysql.connect(
                 db=self.config["database"],
                 user=self.config["user"],
@@ -19,9 +19,6 @@ class MySQL:
                 host=self.config["url"],
                 port=self.config["port"],
             )
-            await self.create_tables()
-
-        self.cursor = await self.connection.cursor(DictCursor)
 
     async def create_tables(self):
         # Create tables one by one
@@ -53,27 +50,48 @@ class MySQL:
             )
         """)
 
-    async def do(self, sql: str, values: tuple = ()) -> None:
+    async def do(self, sql, values=None):
         await self.connect()
-        await self.cursor.execute(sql, values)
-        await self.connection.commit()
+        async with self.connection.cursor(DictCursor) as cursor:
+            try:
+                await cursor.execute(sql, values)
+                await self.connection.commit()
+            except aiomysql.OperationalError as e:
+                if e.args[0] in (
+                    2013,
+                    2006,
+                ):  # Lost connection to MySQL server during query
+                    await self.connect(connect_instant=True)
+                    async with self.connection.cursor(DictCursor) as cursor:
+                        await cursor.execute(sql, values)
+                        await self.connection.commit()
+                else:
+                    raise
 
-    async def read(
-        self, sql: str, values: tuple = (), one: bool = False
-    ) -> Iterable[DictCursor]:
+    async def read(self, sql, values=None, one=False):
         await self.connect()
-        await self.cursor.execute(sql, values)
-
-        if one:
-            return await self.cursor.fetchone()
-        else:
-            return await self.cursor.fetchall()
+        async with self.connection.cursor(DictCursor) as cursor:
+            try:
+                await cursor.execute(sql, values)
+                result = await cursor.fetchone() if one else await cursor.fetchall()
+                return result
+            except aiomysql.OperationalError as e:
+                if e.args[0] in (
+                    2013,
+                    2006,
+                ):  # Lost connection to MySQL server during query
+                    await self.connect(connect_instant=True)
+                    async with self.connection.cursor(DictCursor) as cursor:
+                        await cursor.execute(sql, values)
+                        result = (
+                            await cursor.fetchone() if one else await cursor.fetchall()
+                        )
+                        return result
+                else:
+                    raise
 
     async def close(self) -> None:
-        if self.cursor:
-            await self.cursor.close()
-        if self.connection:
-            self.connection.close()
+        self.connection.close()
 
     async def user_exists(self, user_id: int) -> bool:
         sql = "SELECT * FROM users WHERE id = %s"
