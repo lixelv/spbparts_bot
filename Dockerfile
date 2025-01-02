@@ -22,5 +22,7 @@ ENV NAME=spbparts_bot
 # Copy the .env file into the container
 COPY .env /app/.env
 
+VOLUME /logs
+
 # Run the bot when the container launches
 CMD ["python", "app/main.py"]

@@ -3,7 +3,7 @@ import json
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import Message, ContentType
+from aiogram.types import Message, ContentType, FSInputFile
 import re
 
 
@@ -15,6 +15,12 @@ from database import MySQL
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+logs_path = "/logs/spbparts-bot.txt"
+file_handler = logging.FileHandler(logs_path)
+file_handler.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+logging.getLogger().addHandler(file_handler)
 
 # Initialize bot and dispatcher
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
@@ -43,6 +49,13 @@ async def clear(message: Message, user):
     return await message.reply(
         "Контекст очищен.",
         reply_markup=keyboard,
+    )
+
+
+@dp.message(Command("logs"))
+async def logs(message: Message):
+    return await message.reply_document(
+        FSInputFile(logs_path, filename="logs.txt"), reply_markup=keyboard
     )
 
 
