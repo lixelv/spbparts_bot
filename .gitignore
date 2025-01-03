@@ -123,5 +123,7 @@ dmypy.json
 cython_debug/
 
 # logs
-
 logs.txt
+
+# tests
+test.py

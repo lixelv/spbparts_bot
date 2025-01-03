@@ -34,4 +34,4 @@ async def get_answer_async(request, thread_id: str, context: any) -> str:
         response = client.beta.threads.messages.list(thread_id, limit=1)
         return clear_context(response.data[0].content[0].text.value)
     else:
-        return "Извините, произошла ошибка. Попробуйте еще раз позже."
+        return "Извините, произошла ошибка. Попробуйте написать команду /clear или попробуйте позже."

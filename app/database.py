@@ -1,5 +1,4 @@
 import aiomysql
-
 from aiomysql import DictCursor
 from typing import Optional, List
 
@@ -7,21 +6,26 @@ from typing import Optional, List
 class MySQL:
     def __init__(self, config: dict):
         self.config = config
-        self.connection: Optional[aiomysql.Connection] = None
-        self.cursor: Optional[aiomysql.Cursor] = None
+        self.pool: Optional[aiomysql.Pool] = None
 
-    async def connect(self, connect_instant=False) -> None:
-        if not self.connection or self.connection.closed or connect_instant:
-            self.connection = await aiomysql.connect(
+    async def connect(self) -> None:
+        if not self.pool:
+            self.pool = await aiomysql.create_pool(
                 db=self.config["database"],
                 user=self.config["user"],
                 password=self.config["password"],
                 host=self.config["url"],
                 port=self.config["port"],
+                minsize=1,
+                maxsize=10,
             )
 
+    async def close(self):
+        if self.pool:
+            self.pool.close()
+            await self.pool.wait_closed()
+
     async def create_tables(self):
-        # Create tables one by one
         await self.do("""
             CREATE TABLE IF NOT EXISTS users (
                 id BIGINT PRIMARY KEY, -- Telegram ID пользователя или уникальный ID
@@ -52,46 +56,49 @@ class MySQL:
 
     async def do(self, sql, values=None):
         await self.connect()
-        async with self.connection.cursor(DictCursor) as cursor:
-            try:
-                await cursor.execute(sql, values)
-                await self.connection.commit()
-            except aiomysql.OperationalError as e:
-                if e.args[0] in (
-                    2013,
-                    2006,
-                ):  # Lost connection to MySQL server during query
-                    await self.connect(connect_instant=True)
-                    async with self.connection.cursor(DictCursor) as cursor:
-                        await cursor.execute(sql, values)
-                        await self.connection.commit()
-                else:
-                    raise
+        async with self.pool.acquire() as conn:
+            async with conn.cursor(DictCursor) as cursor:
+                try:
+                    await cursor.execute(sql, values)
+                    await conn.commit()
+                except aiomysql.OperationalError as e:
+                    if e.args[0] in (
+                        2013,
+                        2006,
+                    ):  # Lost connection to MySQL server during query
+                        await self.connect()
+                        async with self.pool.acquire() as conn:
+                            async with conn.cursor(DictCursor) as cursor:
+                                await cursor.execute(sql, values)
+                                await conn.commit()
+                    else:
+                        raise
 
     async def read(self, sql, values=None, one=False):
         await self.connect()
-        async with self.connection.cursor(DictCursor) as cursor:
-            try:
-                await cursor.execute(sql, values)
-                result = await cursor.fetchone() if one else await cursor.fetchall()
-                return result
-            except aiomysql.OperationalError as e:
-                if e.args[0] in (
-                    2013,
-                    2006,
-                ):  # Lost connection to MySQL server during query
-                    await self.connect(connect_instant=True)
-                    async with self.connection.cursor(DictCursor) as cursor:
-                        await cursor.execute(sql, values)
-                        result = (
-                            await cursor.fetchone() if one else await cursor.fetchall()
-                        )
-                        return result
-                else:
-                    raise
-
-    async def close(self) -> None:
-        self.connection.close()
+        async with self.pool.acquire() as conn:
+            async with conn.cursor(DictCursor) as cursor:
+                try:
+                    await cursor.execute(sql, values)
+                    result = await cursor.fetchone() if one else await cursor.fetchall()
+                    return result
+                except aiomysql.OperationalError as e:
+                    if e.args[0] in (
+                        2013,
+                        2006,
+                    ):  # Lost connection to MySQL server during query
+                        await self.connect()
+                        async with self.pool.acquire() as conn:
+                            async with conn.cursor(DictCursor) as cursor:
+                                await cursor.execute(sql, values)
+                                result = (
+                                    await cursor.fetchone()
+                                    if one
+                                    else await cursor.fetchall()
+                                )
+                                return result
+                    else:
+                        raise
 
     async def user_exists(self, user_id: int) -> bool:
         sql = "SELECT * FROM users WHERE id = %s"
