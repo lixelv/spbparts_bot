@@ -93,7 +93,7 @@ async def chatgpt_reply(message: Message, user, text=None):
         await sql.set_phone_number(message.from_user.id, phone_number)
 
     await reply.delete()
-    return await message.reply(response, parse_mode="Markdown", reply_markup=keyboard)
+    return await message.reply(response, reply_markup=keyboard)
 
 
 @dp.message()
