@@ -7,11 +7,11 @@ from aiogram.types import Message, ContentType, FSInputFile
 import re
 
 
-from config import TELEGRAM_BOT_TOKEN, DATABASE_CONFIG, LOADING_STICKER_ID
-from utils import get_answer_async, client
+from config import TELEGRAM_BOT_TOKEN, LOADING_STICKER_ID, sql
+from utils import get_answer_async
+from functions import client
 from keyboards import keyboard
 from middlewares import setup_middlewares
-from database import MySQL
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +25,6 @@ logging.getLogger().addHandler(file_handler)
 # Initialize bot and dispatcher
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
-sql = MySQL(DATABASE_CONFIG)
 
 setup_middlewares(dp, sql)
 
@@ -78,21 +77,19 @@ async def chatgpt_reply(message: Message, user, text=None):
         thread_id = client.beta.threads.create(metadata=metadata).id
         await sql.set_chatgpt_thread_id(message.from_user.id, thread_id)
 
-    reply = await message.answer_sticker(
+    loading = await message.answer_sticker(
         LOADING_STICKER_ID,
         reply_markup=keyboard,
     )
 
-    response = await get_answer_async(text, thread_id, metadata)
-    set_phone_regex = r"SET_PHONE_NUMBER:\s*(\+?\d+)"
-    phone_number = (re.findall(set_phone_regex, response) or [None])[0]
-    response = re.sub(set_phone_regex, "", response)
+    try:
+        response = await get_answer_async(text, thread_id, metadata)
+    except Exception as e:
+        thread_id = client.beta.threads.create(metadata=metadata).id
+        await sql.set_chatgpt_thread_id(message.from_user.id, thread_id)
+        response = await get_answer_async(text, thread_id, metadata)
 
-    if phone_number is not None:
-        print(phone_number)
-        await sql.set_phone_number(message.from_user.id, phone_number)
-
-    await reply.delete()
+    await loading.delete()
     return await message.reply(response, reply_markup=keyboard)
 
 
