@@ -4,8 +4,6 @@ import json
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, ContentType, FSInputFile
-import re
-
 
 from config import TELEGRAM_BOT_TOKEN, LOADING_STICKER_ID, sql
 from utils import get_answer_async
@@ -15,7 +13,7 @@ from middlewares import setup_middlewares
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logs_path = "/logs/spbparts-bot.txt"
+logs_path = "/logs/telegram-bot.txt"
 file_handler = logging.FileHandler(logs_path)
 file_handler.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -84,7 +82,7 @@ async def chatgpt_reply(message: Message, user, text=None):
 
     try:
         response = await get_answer_async(text, thread_id, metadata)
-    except Exception as e:
+    except Exception:
         thread_id = client.beta.threads.create(metadata=metadata).id
         await sql.set_chatgpt_thread_id(message.from_user.id, thread_id)
         response = await get_answer_async(text, thread_id, metadata)

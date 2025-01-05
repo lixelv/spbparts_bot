@@ -1,23 +1,23 @@
 name: Deploy Bot with SSH Password
 
 on:
-  push:
-    branches:
-      - main
+    push:
+        branches:
+            - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+    deploy:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
 
-      - name: Install sshpass
-        run: sudo apt-get update && sudo apt-get install -y sshpass
+            - name: Install sshpass
+              run: sudo apt-get update && sudo apt-get install -y sshpass
 
-      - name: Deploy using SSH and password
-        run: |
-          sshpass -p "${{ secrets.SSH_KEY }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << EOF
-          /root/github/telegram_bot/rebuild.sh
-          EOF
+            - name: Deploy using SSH and password
+              run: |
+                  sshpass -p "${{ secrets.SSH_KEY }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << EOF
+                  /root/github/spbparts_bot/telegram/rebuild.sh
+                  EOF
