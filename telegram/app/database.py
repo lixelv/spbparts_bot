@@ -6,99 +6,92 @@ from typing import Optional, List
 class PostgresDB:
     def __init__(self, config: dict):
         self.config = config
-        self.conn: Optional[asyncpg.Connection] = None
+        self.pool: Optional[asyncpg.Pool] = None
 
     async def connect(self) -> None:
-        # Если соединение нет или оно закрыто — переподключаемся
-        if not self.conn or self.conn.is_closed():
-            self.conn = await asyncpg.connect(**self.config)
+        if not self.pool:
+            self.pool = await asyncpg.create_pool(**self.config)
 
     async def close(self) -> None:
-        if self.conn and not self.conn.is_closed():
-            await self.conn.close()
+        if self.pool:
+            await self.pool.close()
 
     def __del__(self):
         """
-        Вызывается при удалении объекта. Закрывает соединение с базой данных.
+        Вызывается при удалении объекта. Закрывает пул соединений с базой данных.
         """
-        if self.conn and not self.conn.is_closed():
-            try:
-                # Для закрытия соединения нужен цикл событий
-                import asyncio
+        try:
+            import asyncio
 
-                loop = asyncio.get_event_loop()
+            loop = asyncio.get_event_loop()
 
-                if loop.is_running():
-                    loop.create_task(self.close())
-                else:
-                    loop.run_until_complete(self.close())
-            except Exception as e:
-                print(f"Ошибка при закрытии соединения в __del__: {e}")
+            if loop.is_running():
+                loop.create_task(self.close())
+            else:
+                loop.run_until_complete(self.close())
+        except Exception as e:
+            print(f"Ошибка при закрытии пула соединений в __del__: {e}")
 
     async def create_tables(self) -> None:
-        await self.do(
-            """
-            CREATE TABLE IF NOT EXISTS users (
-                id BIGINT PRIMARY KEY,
-                username VARCHAR(255),
-                full_name VARCHAR(255),
-                phone_number VARCHAR(255),
-                chatgpt_thread_id VARCHAR(255),
-                manager_level INT DEFAULT 0,
-                spec VARCHAR(255),
-                active_user BIGINT,
-                extra_info JSONB DEFAULT '{}',
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        await self.do(
-            """
-            DO $$
-                BEGIN
-                    ALTER TABLE users
-                    ADD CONSTRAINT fk_active_user
-                    FOREIGN KEY (active_user) REFERENCES users (id) ON DELETE SET NULL;
-                EXCEPTION
-                    WHEN duplicate_object THEN
-                        -- Просто игнорируем
-                END;
-            $$
-            """
-        )
-        await self.do(
-            """
-            CREATE TABLE IF NOT EXISTS messages (
-                id BIGSERIAL PRIMARY KEY,
-                user_id BIGINT,
-                message TEXT NOT NULL,
-                sender INT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                CONSTRAINT fk_user
-                    FOREIGN KEY(user_id)
-                    REFERENCES users(id)
-                    ON DELETE CASCADE
-            )
-            """
-        )
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS users (
+                        id BIGINT PRIMARY KEY,
+                        username VARCHAR(255),
+                        full_name VARCHAR(255),
+                        phone_number VARCHAR(255),
+                        chatgpt_thread_id VARCHAR(255),
+                        manager_level INT DEFAULT 0,
+                        spec VARCHAR(255),
+                        active_user BIGINT,
+                        extra_info JSONB DEFAULT '{}',
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+                await conn.execute(
+                    """
+                    DO $$ BEGIN
+                        ALTER TABLE users
+                        ADD CONSTRAINT fk_active_user
+                        FOREIGN KEY (active_user) REFERENCES users (id) ON DELETE SET NULL;
+                    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+                    """
+                )
+                await conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS messages (
+                        id BIGSERIAL PRIMARY KEY,
+                        user_id BIGINT,
+                        message TEXT NOT NULL,
+                        sender INT NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT fk_user
+                            FOREIGN KEY(user_id)
+                            REFERENCES users(id)
+                            ON DELETE CASCADE
+                    )
+                    """
+                )
 
     async def do(self, sql: str, values=None) -> None:
         await self.connect()
-        if values:
-            await self.conn.execute(sql, *values)
-        else:
-            await self.conn.execute(sql)
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                if values:
+                    await conn.execute(sql, *values)
+                else:
+                    await conn.execute(sql)
 
     async def read(self, sql: str, values=None, one=False):
         await self.connect()
-        rows = (
-            await self.conn.fetch(sql, *values)
-            if values
-            else await self.conn.fetch(sql)
-        )
-        if one:
-            return dict(rows[0]) if rows else None
-        return [dict(r) for r in rows]
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(sql, *values) if values else await conn.fetch(sql)
+            if one:
+                return dict(rows[0]) if rows else None
+            return [dict(r) for r in rows]
 
     async def get_or_create_user(
         self, user_id: int, username: str, full_name: str
@@ -154,7 +147,6 @@ class PostgresDB:
         sql = "INSERT INTO messages (user_id, message, sender) VALUES ($1, $2, $3)"
         await self.do(sql, (user_id, message_text, sender))
 
-    # Прибавляем новое поле к существующему JSON, не теряя старое
     async def update_user_info(self, user_id: int, json_info: dict) -> None:
         sql = """
             UPDATE users
