@@ -14,5 +14,6 @@ async def get_answer_async(request, thread_id: str, context: any) -> str:
             f"USER_INFO: {context}\n\n{request}",
             thread_id=thread_id,
             assistant_id=OPENAI_ASSISTANT_ID,
+            use_tools=False,
         )
     )
